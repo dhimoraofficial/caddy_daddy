@@ -1,6 +1,6 @@
 {
 	on_demand_tls {
-		ask {$ASK_ENDPOINT:http://dhimora-backend-production.up.railway.app/v1/store/lookup}
+		ask {$ASK_ENDPOINT:http://dhimora-backend.railway.internal:2000/v1/store/lookup}
 	}
 }
 
@@ -18,7 +18,7 @@ https:// {
 
 	encode zstd gzip
 
-	reverse_proxy {$UPSTREAM_URL:http://production-storefront-production.up.railway.app} {
+	reverse_proxy {$UPSTREAM_URL:http://template-based-rendering.railway.internal:3000} {
 		header_up Host {host}
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-Proto https
@@ -35,7 +35,7 @@ https:// {
 
 	encode zstd gzip
 
-	reverse_proxy {$UPSTREAM_URL:http://production-storefront-production.up.railway.app} {
+	reverse_proxy {$UPSTREAM_URL:http://template-based-rendering.railway.internal:3000} {
 		header_up Host {host}
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-Proto {header.X-Forwarded-Proto}
