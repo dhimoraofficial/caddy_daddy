@@ -1,0 +1,16 @@
+# Environment files
+.env
+.env.local
+*.env
+
+# Local data & certificates
+data/
+config/
+certs/
+
+# OS / Editor artifacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
