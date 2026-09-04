@@ -28,6 +28,7 @@ https:// {
 
 	reverse_proxy {$UPSTREAM_URL:https://production-storefront-production.up.railway.app} {
 		header_up Host {$UPSTREAM_HOST:production-storefront-production.up.railway.app}
+		header_up X-Tenant-Domain {host}
 		header_up X-Forwarded-Proto https
 		header_up X-Real-IP {remote_host}
 	}
