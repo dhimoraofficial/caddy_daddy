@@ -1,0 +1,49 @@
+# fly.toml - Configuration for Caddy Daddy Reverse Proxy on Fly.io
+
+app = "caddy-daddy"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  UPSTREAM_URL = "https://production-storefront-production.up.railway.app"
+  UPSTREAM_HOST = "production-storefront-production.up.railway.app"
+  ASK_ENDPOINT = "https://dhimora-backend-production.up.railway.app/v1/store/lookup"
+
+[mounts]
+  source = "caddy_data"
+  destination = "/data"
+  initial_size = "1gb"
+
+# Port 80: HTTP-01 ACME Challenges & HTTP -> HTTPS Redirect
+[[services]]
+  protocol = "tcp"
+  internal_port = 80
+
+  [[services.ports]]
+    port = 80
+
+  [[services.tcp_checks]]
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "5s"
+
+# Port 443: Direct TLS Termination & On-Demand TLS Handshake
+# Note: handlers = [] enables raw TCP passthrough so Caddy handles TLS directly!
+[[services]]
+  protocol = "tcp"
+  internal_port = 443
+
+  [[services.ports]]
+    port = 443
+
+  [[services.tcp_checks]]
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "5s"
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1

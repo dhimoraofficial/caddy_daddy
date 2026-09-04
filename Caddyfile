@@ -1,12 +1,19 @@
 {
 	on_demand_tls {
-		ask {$ASK_ENDPOINT:http://dhimora-backend.railway.internal:2000/v1/store/lookup}
+		ask {$ASK_ENDPOINT:https://dhimora-backend-production.up.railway.app/v1/store/lookup}
 	}
 }
 
-# -------------------------------------------------------------
-# 1. Custom Tenant Domains (Port 443 via Railway TCP Proxy)
-# -------------------------------------------------------------
+# HTTP: Health check and automatic redirect to HTTPS
+http:// {
+	respond /health 200 {
+		body "ok"
+	}
+
+	redir https://{host}{uri} permanent
+}
+
+# HTTPS: On-Demand TLS for custom tenant domains and wildcard subdomains
 https:// {
 	tls {
 		on_demand
@@ -18,26 +25,9 @@ https:// {
 
 	encode zstd gzip
 
-	reverse_proxy {$UPSTREAM_URL:http://template-based-rendering.railway.internal:3000} {
-		header_up Host {host}
-		header_up X-Real-IP {remote_host}
+	reverse_proxy {$UPSTREAM_URL:https://production-storefront-production.up.railway.app} {
+		header_up Host {$UPSTREAM_HOST:production-storefront-production.up.railway.app}
 		header_up X-Forwarded-Proto https
-	}
-}
-
-# -------------------------------------------------------------
-# 2. Wildcard Subdomains & Railway Edge HTTP (Port :{$PORT})
-# -------------------------------------------------------------
-:{$PORT:8080} {
-	respond /health 200 {
-		body "ok"
-	}
-
-	encode zstd gzip
-
-	reverse_proxy {$UPSTREAM_URL:http://template-based-rendering.railway.internal:3000} {
-		header_up Host {host}
 		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-Proto {header.X-Forwarded-Proto}
 	}
 }

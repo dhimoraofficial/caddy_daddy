@@ -1,115 +1,120 @@
-# Caddy Daddy (Railway Reverse Proxy)
+# Caddy Daddy (Reverse Proxy on Fly.io $\rightarrow$ Railway Upstream)
 
-Production-ready Caddy v2 reverse proxy designed for Railway. Handles **custom tenant domains** with automated On-Demand TLS as well as **wildcard subdomains** (`*.dhimora.com`).
+Production-ready Caddy v2 reverse proxy deployed on **Fly.io** with persistent storage, proxying traffic to your **Railway** backend and storefront.
+
+Handles **custom tenant domains** with automated On-Demand TLS as well as **wildcard subdomains** (`*.dhimora.com`).
 
 ---
 
 ## 🏗 Architecture
 
 ```
-[Custom Domains] --------> Railway TCP Proxy (:443) ----> Caddy (https://) --[Ask Endpoint Check]--> Upstream App
-(tenant.com)                                                   |                                (web:3000)
-                                                               v
-                                                       Persistent /data
-                                                       (SSL Certificates)
-
-[Wildcard Subdomains] ---> Railway HTTP Edge (:PORT) ---> Caddy (:PORT) -----------------------------> Upstream App
-(*.dhimora.com)                                                                                 (web:3000)
+[Custom Domains & Subdomains] 
+(tenant.com / *.dhimora.com)
+            │
+            ▼ (Raw TCP: 80, 443)
+┌──────────────────────────────────────────────┐
+│ Fly.io Gateway (Caddy)                       │
+│                                              │
+│  - Port 80: HTTP->HTTPS & ACME Challenges   │
+│  - Port 443: On-Demand TLS Handshake         │
+│  - Storage: Persistent Volume (/data)        │
+└──────┬───────────────────────────────┬───────┘
+       │                               │
+       │ 1. Validate domain (?domain=) │ 2. Proxy request with Host header
+       ▼                               ▼
+┌──────────────────────────────┐ ┌─────────────────────────────────────────┐
+│ Railway Backend              │ │ Railway Storefront                      │
+│ dhimora-backend-production...│ │ production-storefront-production...     │
+│ /v1/store/lookup             │ │ (Receives X-Forwarded-Host: tenant.com) │
+└──────────────────────────────┘ └─────────────────────────────────────────┘
 ```
 
 ---
 
-## 🚀 Setup Guide on Railway
+## 🚀 Fly.io Quickstart & Deployment
 
-### 1. Disconnect Previous Docker Hub Deployment
-If you currently have the raw `caddy:2.11.4-alpine` Docker Hub image deployed:
-1. Open your Railway project.
-2. Select your Caddy service.
-3. In the service settings / source panel, click **Disconnect**.
+### 1. Authenticate with Fly.io
+```bash
+fly auth login
+```
+
+### 2. Launch or Create the Fly App
+```bash
+# If launching for the first time:
+fly launch --no-deploy
+```
+*(Choose your app name, e.g. `caddy-daddy`, and select your primary region, e.g. `sin` for Singapore).*
+
+### 3. Create the Persistent Volume for Certificates
+> **CRITICAL**: The `/data` volume ensures Let's Encrypt / ZeroSSL certificates survive redeployments, preventing ACME rate limits.
+
+```bash
+fly volumes create caddy_data --region sin --size 1
+```
+
+### 4. Allocate Dedicated Public IP Addresses
+Fly.io provides dedicated IPs for your reverse proxy:
+```bash
+# Allocate dedicated IPv4 (essential for root A records)
+fly ips allocate-v4
+
+# Allocate dedicated IPv6 (for AAAA records)
+fly ips allocate-v6
+```
+*(Run `fly ips list` to view your assigned IP addresses).*
+
+### 5. Deploy to Fly.io
+```bash
+fly deploy
+```
 
 ---
 
-### 2. Connect this GitHub Repository
-1. Push this repository to GitHub:
-   ```bash
-   git push -u origin main
-   ```
-2. In Railway, click **+ New** $\rightarrow$ **GitHub Repo** (or re-link this repo under the **Source** section of the existing service).
-3. Railway will automatically detect the `Dockerfile` and build the container image.
+## ⚙️ Configuration & Environment Variables
 
----
+These are pre-configured in `fly.toml` under `[env]`, but can also be updated via `fly secrets set` or `fly.toml`:
 
-### 3. Attach Persistent Volume (`/data`)
-> **CRITICAL:** Without persistent storage, Caddy will re-request Let's Encrypt certificates every time the service restarts or redeploys, causing Let's Encrypt rate limiting!
-
-1. Go to the service's **Variables & Volumes** tab.
-2. Scroll to **Volumes** $\rightarrow$ Click **+ Add Volume**.
-3. Set the mount path to:
-   ```
-   /data
-   ```
-
----
-
-### 4. Configure Environment Variables
-In the **Variables** tab of the Caddy service, configure the following:
-
-| Variable | Description | Example / Default |
+| Variable | Default Value | Description |
 | :--- | :--- | :--- |
-| `UPSTREAM_URL` | Internal Railway URL of the web app or CMS | `http://web.railway.internal:3000` |
-| `ASK_ENDPOINT` | Backend API endpoint that validates tenant domains | `http://super-backend.railway.internal:5000/api/v1/caddy/check-domain` |
-| `PORT` | HTTP port used by Railway's Edge router | `8080` |
+| `UPSTREAM_URL` | `https://production-storefront-production.up.railway.app` | Target Railway storefront URL |
+| `UPSTREAM_HOST` | `production-storefront-production.up.railway.app` | Host header sent to Railway Edge router |
+| `ASK_ENDPOINT` | `https://dhimora-backend-production.up.railway.app/v1/store/lookup` | Backend validation endpoint |
 
 ---
 
-### 5. Configure Networking & Proxies
+## 🌐 DNS Setup for Tenants
 
-#### A. For Custom Tenant Domains (`tenant.com`)
-1. Go to the service's **Settings** $\rightarrow$ **Networking**.
-2. Under **TCP Proxies**, click **+ Add TCP Proxy**.
-3. Specify port `443`.
-4. Railway will provide a TCP proxy target (e.g. `junction.proxy.rlwy.net:12345` or dedicated IP). Tenants point their DNS A / CNAME records to this target.
+### Tenant Custom Domains (`clientstore.com`)
+Direct tenants to add either:
+- **A Record**: `@` $\rightarrow$ `<Fly-Allocated-IPv4>`
+- **AAAA Record**: `@` $\rightarrow$ `<Fly-Allocated-IPv6>`
+- **CNAME Record**: `www` or `shop` $\rightarrow$ `your-app-name.fly.dev`
 
-#### B. For Wildcard Subdomains (`*.dhimora.com`)
-1. In Railway service **Settings** $\rightarrow$ **Public Networking**, click **Generate Domain** or **Custom Domain**.
-2. Add your wildcard domain (e.g., `*.dhimora.com`).
-3. Railway's edge terminates SSL and forwards requests over internal HTTP to Caddy's `:{$PORT}` block.
+### Wildcard Subdomain (`*.dhimora.com`)
+In your DNS provider (e.g. Cloudflare / Route53):
+- **A Record**: `*.dhimora.com` $\rightarrow$ `<Fly-Allocated-IPv4>`
+- **AAAA Record**: `*.dhimora.com` $\rightarrow$ `<Fly-Allocated-IPv6>`
 
 ---
 
 ## 🔒 The Domain Validation Endpoint (`ask`)
 
-Before Caddy issues an SSL certificate for any domain requested via On-Demand TLS, Caddy makes an HTTP GET request to `ASK_ENDPOINT`:
-
+When a client hits Caddy on port 443 with a domain name, Caddy triggers:
 ```http
-GET /api/v1/caddy/check-domain?domain=customer-domain.com HTTP/1.1
-Host: super-backend.railway.internal:5000
+GET /v1/store/lookup?domain=clientstore.com HTTP/1.1
+Host: dhimora-backend-production.up.railway.app
 ```
-
-### Backend Requirements:
-- **Return HTTP `200 OK`**: If the domain is recognized and authorized in your database (or ends with an approved root like `.dhimora.com`).
-- **Return HTTP `403 Forbidden` / `404 Not Found`**: If the domain is unauthorized. Caddy will abort the TLS handshake, protecting your Let's Encrypt quota against SSL abuse attacks.
+- **HTTP 200 OK**: Backend confirms domain exists $\rightarrow$ Caddy issues/loads certificate.
+- **HTTP 404 / 403**: Backend rejects domain $\rightarrow$ Caddy drops TLS handshake (prevents certificate spoofing and abuse).
 
 ---
 
 ## 🩺 Healthcheck
 
-Both HTTP and HTTPS blocks expose a lightweight healthcheck:
-```
-GET /health
-```
-Response: `200 OK` with body `ok` (does not forward to upstream).
-
----
-
-## 🛠 Local Testing
-
-Validate configuration:
+Fly.io automatically performs TCP checks on ports 80 and 443.
+You can also verify Caddy directly:
 ```bash
-docker run --rm -v $(pwd)/Caddyfile:/etc/caddy/Caddyfile caddy:2.11.4-alpine caddy validate --config /etc/caddy/Caddyfile
-```
-
-Build image:
-```bash
-docker build -t caddy-daddy:local .
+curl -i http://<your-fly-app>.fly.dev/health
+# Returns HTTP 200 OK with "ok"
 ```
