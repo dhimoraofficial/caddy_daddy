@@ -6,11 +6,12 @@
 
 # HTTP: Health check and automatic redirect to HTTPS
 http:// {
+	@notHealth not path /health
+	redir @notHealth https://{host}{uri} permanent
+
 	respond /health 200 {
 		body "ok"
 	}
-
-	redir https://{host}{uri} permanent
 }
 
 # HTTPS: On-Demand TLS for custom tenant domains and wildcard subdomains
