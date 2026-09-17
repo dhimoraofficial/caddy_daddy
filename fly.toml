@@ -7,9 +7,9 @@ primary_region = "iad"
   dockerfile = "Dockerfile"
 
 [env]
-  UPSTREAM_URL = "https://production-storefront-production.up.railway.app"
-  UPSTREAM_HOST = "production-storefront-production.up.railway.app"
-  ASK_ENDPOINT = "https://dhimora-backend-production.up.railway.app/v1/store/lookup"
+  UPSTREAM_URL = "https://dhimora-echo-ecommerce.fly.dev"
+  UPSTREAM_HOST = "dhimora-echo-ecommerce.fly.dev"
+  ASK_ENDPOINT = "https://dhimora-backend.fly.dev/v1/store/lookup"
 
 [mounts]
   source = "caddy_data"
@@ -44,6 +44,7 @@ primary_region = "iad"
     grace_period = "5s"
 
 [[vm]]
-  memory = "256mb"
+  size = "shared-cpu-4x"
+  memory = "8192mb"
   cpu_kind = "shared"
-  cpus = 1
+  cpus = 4
