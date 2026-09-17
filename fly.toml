@@ -1,7 +1,7 @@
 # fly.toml - Configuration for Caddy Daddy Reverse Proxy on Fly.io
 
 app = "caddy-daddy"
-primary_region = "iad"
+primary_region = "sin"
 
 [build]
   dockerfile = "Dockerfile"
