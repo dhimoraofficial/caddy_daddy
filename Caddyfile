@@ -1,6 +1,6 @@
 {
 	on_demand_tls {
-		ask {$ASK_ENDPOINT:https://dhimora-backend-production.up.railway.app/v1/store/lookup}
+		ask {$ASK_ENDPOINT:https://dhimora-backend.fly.dev/v2/store/lookup}
 	}
 }
 
@@ -26,8 +26,8 @@ https:// {
 
 	encode zstd gzip
 
-	reverse_proxy {$UPSTREAM_URL:https://production-storefront-production.up.railway.app} {
-		header_up Host {$UPSTREAM_HOST:production-storefront-production.up.railway.app}
+	reverse_proxy {$UPSTREAM_URL:https://dhimora-echo-ecommerce.fly.dev} {
+		header_up Host {$UPSTREAM_HOST:dhimora-echo-ecommerce.fly.dev}
 		header_up X-Tenant-Domain {host}
 		header_up X-Forwarded-Proto https
 		header_up X-Real-IP {remote_host}

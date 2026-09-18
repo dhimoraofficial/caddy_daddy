@@ -9,7 +9,7 @@ primary_region = "sin"
 [env]
   UPSTREAM_URL = "https://dhimora-echo-ecommerce.fly.dev"
   UPSTREAM_HOST = "dhimora-echo-ecommerce.fly.dev"
-  ASK_ENDPOINT = "https://dhimora-backend.fly.dev/v1/store/lookup"
+  ASK_ENDPOINT = "https://dhimora-backend.fly.dev/v2/store/lookup"
 
 [mounts]
   source = "caddy_data"

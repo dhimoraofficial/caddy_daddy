@@ -1,6 +1,6 @@
-# Caddy Daddy (Reverse Proxy on Fly.io $\rightarrow$ Railway Upstream)
+# Caddy Daddy (Reverse Proxy on Fly.io $\rightarrow$ Fly.io Upstream)
 
-Production-ready Caddy v2 reverse proxy deployed on **Fly.io** with persistent storage, proxying traffic to your **Railway** backend and storefront.
+Production-ready Caddy v2 reverse proxy deployed on **Fly.io** with persistent storage, proxying traffic to your **Fly.io** backend and storefront.
 
 Handles **custom tenant domains** with automated On-Demand TLS as well as **wildcard subdomains** (`*.dhimora.com`).
 
@@ -24,9 +24,9 @@ Handles **custom tenant domains** with automated On-Demand TLS as well as **wild
        │ 1. Validate domain (?domain=) │ 2. Proxy request with Host header
        ▼                               ▼
 ┌──────────────────────────────┐ ┌─────────────────────────────────────────┐
-│ Railway Backend              │ │ Railway Storefront                      │
+│ Fly Backend              │ │ Fly Storefront                      │
 │ dhimora-backend-production...│ │ production-storefront-production...     │
-│ /v1/store/lookup             │ │ (Receives X-Forwarded-Host: tenant.com) │
+│ /v2/store/lookup             │ │ (Receives X-Forwarded-Host: tenant.com) │
 └──────────────────────────────┘ └─────────────────────────────────────────┘
 ```
 
@@ -77,9 +77,9 @@ These are pre-configured in `fly.toml` under `[env]`, but can also be updated vi
 
 | Variable | Default Value | Description |
 | :--- | :--- | :--- |
-| `UPSTREAM_URL` | `https://production-storefront-production.up.railway.app` | Target Railway storefront URL |
-| `UPSTREAM_HOST` | `production-storefront-production.up.railway.app` | Host header sent to Railway Edge router |
-| `ASK_ENDPOINT` | `https://dhimora-backend-production.up.railway.app/v1/store/lookup` | Backend validation endpoint |
+| `UPSTREAM_URL` | `https://dhimora-echo-ecommerce.fly.dev` | Target Fly.io storefront URL |
+| `UPSTREAM_HOST` | `dhimora-echo-ecommerce.fly.dev` | Host header sent to Fly Edge router |
+| `ASK_ENDPOINT` | `https://dhimora-backend.fly.dev/v2/store/lookup` | Backend validation endpoint |
 
 ---
 
@@ -102,8 +102,8 @@ In your DNS provider (e.g. Cloudflare / Route53):
 
 When a client hits Caddy on port 443 with a domain name, Caddy triggers:
 ```http
-GET /v1/store/lookup?domain=clientstore.com HTTP/1.1
-Host: dhimora-backend-production.up.railway.app
+GET /v2/store/lookup?domain=clientstore.com HTTP/1.1
+Host: dhimora-backend.fly.dev
 ```
 - **HTTP 200 OK**: Backend confirms domain exists $\rightarrow$ Caddy issues/loads certificate.
 - **HTTP 404 / 403**: Backend rejects domain $\rightarrow$ Caddy drops TLS handshake (prevents certificate spoofing and abuse).
