@@ -11,9 +11,7 @@ http:// {
 	redir @notHealth https://{host}{uri} permanent
 
 	header {
-		-Server
 		-Via
-		-X-Powered-By
 		Server "Dhimora-Edge-Shield"
 		X-Powered-By "Dhimora Echo"
 	}
@@ -30,9 +28,7 @@ https:// {
 	}
 
 	header {
-		-Server
 		-Via
-		-X-Powered-By
 		Server "Dhimora-Edge-Shield"
 		X-Powered-By "Dhimora Echo"
 	}
@@ -52,10 +48,8 @@ https:// {
 		# Enforce multi-tenant cache isolation by appending Host and tenant domain to Vary
 		header_down +Vary "Host, X-Forwarded-Host, X-Tenant-Domain"
 
-		# Strip backend infrastructure and proxy disclosure headers
+		# Strip proxy disclosure header
 		header_down -Via
-		header_down -Server
-		header_down -X-Powered-By
 
 		# Brand every response as part of Dhimora Edge Cloud
 		header_down Server "Dhimora-Edge-SIN-01"
