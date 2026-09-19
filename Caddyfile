@@ -1,4 +1,5 @@
 {
+	debug
 	on_demand_tls {
 		ask {$ASK_ENDPOINT:https://dhimora-backend.fly.dev/v2/store/lookup}
 	}
@@ -9,6 +10,14 @@ http:// {
 	@notHealth not path /health
 	redir @notHealth https://{host}{uri} permanent
 
+	header {
+		-Server
+		-Via
+		-X-Powered-By
+		Server "Dhimora-Edge-Shield"
+		X-Powered-By "Dhimora Echo"
+	}
+
 	respond /health 200 {
 		body "ok"
 	}
@@ -18,6 +27,14 @@ http:// {
 https:// {
 	tls {
 		on_demand
+	}
+
+	header {
+		-Server
+		-Via
+		-X-Powered-By
+		Server "Dhimora-Edge-Shield"
+		X-Powered-By "Dhimora Echo"
 	}
 
 	respond /health 200 {
@@ -31,5 +48,18 @@ https:// {
 		header_up X-Tenant-Domain {host}
 		header_up X-Forwarded-Proto https
 		header_up X-Real-IP {remote_host}
+
+		# Enforce multi-tenant cache isolation by appending Host and tenant domain to Vary
+		header_down +Vary "Host, X-Forwarded-Host, X-Tenant-Domain"
+
+		# Strip backend infrastructure and proxy disclosure headers
+		header_down -Via
+		header_down -Server
+		header_down -X-Powered-By
+
+		# Brand every response as part of Dhimora Edge Cloud
+		header_down Server "Dhimora-Edge-SIN-01"
+		header_down X-Powered-By "Dhimora Echo"
+		header_down X-Dhimora-Edge "sin-01"
 	}
 }

@@ -21,6 +21,11 @@ primary_region = "sin"
   protocol = "tcp"
   internal_port = 80
 
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 1500
+    soft_limit = 1000
+
   [[services.ports]]
     port = 80
 
@@ -35,6 +40,11 @@ primary_region = "sin"
   protocol = "tcp"
   internal_port = 443
 
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 1500
+    soft_limit = 1000
+
   [[services.ports]]
     port = 443
 
@@ -45,6 +55,6 @@ primary_region = "sin"
 
 [[vm]]
   size = "shared-cpu-4x"
-  memory = "8192mb"
+  memory = "2048mb"
   cpu_kind = "shared"
   cpus = 4
