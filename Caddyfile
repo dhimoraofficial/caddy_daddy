@@ -1,5 +1,15 @@
+# This is to store the chae of th contnet!
 {
 	debug
+	order cache before rewrite
+	cache {
+		badger {
+			path /data/cache
+		}
+		regex {
+			exclude ".*(/__|/api/|/health).*"
+		}
+	}
 	on_demand_tls {
 		ask {$ASK_ENDPOINT:https://dhimora-backend.fly.dev/v2/store/lookup}
 	}
@@ -12,7 +22,7 @@ http:// {
 
 	header {
 		-Via
-		Server "Dhimora-Edge-Shield"
+		Server "Dhimora-Edge-SIN-04"
 		X-Powered-By "Dhimora Echo"
 	}
 
@@ -29,7 +39,7 @@ https:// {
 
 	header {
 		-Via
-		Server "Dhimora-Edge-Shield"
+		Server "Dhimora-Edge-SIN-02"
 		X-Powered-By "Dhimora Echo"
 	}
 
@@ -38,6 +48,8 @@ https:// {
 	}
 
 	encode zstd gzip
+
+	cache
 
 	reverse_proxy {$UPSTREAM_URL:https://dhimora-echo-ecommerce.fly.dev} {
 		header_up Host {$UPSTREAM_HOST:dhimora-echo-ecommerce.fly.dev}
@@ -52,7 +64,7 @@ https:// {
 		header_down -Via
 
 		# Brand every response as part of Dhimora Edge Cloud
-		header_down Server "Dhimora-Edge-SIN-01"
+		header_down Server "Dhimora-Edge-SIN-03"
 		header_down X-Powered-By "Dhimora Echo"
 		header_down X-Dhimora-Edge "sin-01"
 	}
