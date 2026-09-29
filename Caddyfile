@@ -84,7 +84,6 @@ https:// {
 	header {
 		-Via
 		-Surrogate-Key
-		X-Dhimora-Edge "sin-01"
 		X-Powered-By "Dhimora Echo"
 	}
 
