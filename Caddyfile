@@ -9,8 +9,8 @@
 	order rate_limit before basicauth
 
 	cache {
-		badger {
-			path /data/cache
+		redis {
+			url {$REDIS_URL}
 		}
 		regex {
 			exclude ".*(/api/|/auth/|/account/|/checkout/|/health).*"
