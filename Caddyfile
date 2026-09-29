@@ -25,6 +25,16 @@
 	}
 }
 
+
+# Internal purge-only listener on port 9000 (not in fly.toml [[services]] = private network only)
+:9000 {
+	handle {
+		reverse_proxy 127.0.0.1:2019 {
+			header_up Host localhost:2019
+		}
+	}
+}
+
 # HTTP: Health check, internal purge API, and automatic redirect to HTTPS
 http:// {
 	@internalPurge {
