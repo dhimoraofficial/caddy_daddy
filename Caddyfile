@@ -1,8 +1,11 @@
 # Note be sure where you are editing on rpoduciton or preproduciton two are diffrent things choose wisely,
 {
-	admin 0.0.0.0:2019
+	admin 0.0.0.0:2019 {
+		origins localhost:2019 127.0.0.1:2019 caddy-daddy.internal:9000 caddy-daddy.internal:2019
+	}
 	debug
 	order cache before rewrite
+	order rate_limit before basicauth
 
 	cache {
 		badger {
@@ -24,12 +27,16 @@
 	}
 }
 
-
 # Internal purge-only listener on port 9000 (not in fly.toml [[services]] = private network only)
 :9000 {
 	handle {
 		reverse_proxy 127.0.0.1:2019 {
 			header_up Host localhost:2019
+			header_up -X-Forwarded-For
+			header_up -X-Forwarded-Proto
+			header_up -X-Forwarded-Host
+			header_up -Sec-Fetch-Mode
+			header_up -Origin
 		}
 	}
 }
@@ -43,6 +50,11 @@ http:// {
 	handle @internalPurge {
 		reverse_proxy 127.0.0.1:2019 {
 			header_up Host localhost:2019
+			header_up -X-Forwarded-For
+			header_up -X-Forwarded-Proto
+			header_up -X-Forwarded-Host
+			header_up -Sec-Fetch-Mode
+			header_up -Origin
 		}
 	}
 
@@ -78,6 +90,21 @@ https:// {
 	}
 	respond @externalCacheApi 403
 
+	# Matcher: Only apply to page requests (excluding static assets, media, Next.js chunks, fonts, and health checks)
+	@rateLimitedPages {
+		not path /_next/* /images/* /assets/* /fonts/* /static/* /favicon.ico /manifest.json /robots.txt /sitemap.xml /health /__cache*
+		not path *.js *.css *.png *.jpg *.jpeg *.svg *.webp *.gif *.ico *.woff *.woff2 *.ttf *.eot *.map *.json
+	}
+
+	# Rate limiting: 120 page requests per minute per IP
+	rate_limit @rateLimitedPages {
+		zone store_page_zone {
+			key {remote_host}
+			events 120
+			window 1m
+		}
+	}
+
 	header {
 		-Via
 		-Surrogate-Key
@@ -100,9 +127,8 @@ https:// {
 		header_up X-Forwarded-Proto https
 		header_up X-Real-IP {remote_host}
 
-		header_down Vary "rsc, Accept-Encoding, Host, X-Forwarded-Host, X-Tenant-Domain"
+		header_down Vary "rsc, Accept-Encoding"
 		header_down -Via
-		header_down -Surrogate-Key
 		header_down X-Powered-By "Dhimora Echo"
 		header_down X-Dhimora-Edge "sin-01-test"
 	}
@@ -114,9 +140,8 @@ https:// {
 		header_up X-Forwarded-Proto https
 		header_up X-Real-IP {remote_host}
 
-		header_down +Vary "Host, X-Forwarded-Host, X-Tenant-Domain"
+		header_down Vary "rsc, Accept-Encoding"
 		header_down -Via
-		header_down -Surrogate-Key
 		header_down X-Powered-By "Dhimora Echo"
 		header_down X-Dhimora-Edge "sin-01"
 	}
