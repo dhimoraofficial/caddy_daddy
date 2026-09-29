@@ -1,3 +1,4 @@
+# Note be sure where you are editing on rpoduciton or preproduciton two are diffrent things choose wisely,
 {
 	debug
 	order cache before rewrite
@@ -72,14 +73,15 @@ https:// {
 	rate_limit {
 		zone store_client_zone {
 			key {remote_host}
-			events 120
-			window 1m
+			events 3
+			window 1s
 		}
 	}
 
 	header {
 		-Via
-		Server "Dhimora-Edge-Shield"
+		-Surrogate-Key
+		X-Dhimora-Edge "sin-01"
 		X-Powered-By "Dhimora Echo"
 	}
 
@@ -99,9 +101,9 @@ https:// {
 		header_up X-Forwarded-Proto https
 		header_up X-Real-IP {remote_host}
 
-		header_down +Vary "Host, X-Forwarded-Host, X-Tenant-Domain"
+		header_down Vary "rsc, Accept-Encoding, Host, X-Forwarded-Host, X-Tenant-Domain"
 		header_down -Via
-		header_down Server "Dhimora-Edge-SIN-01-Test"
+		header_down -Surrogate-Key
 		header_down X-Powered-By "Dhimora Echo"
 		header_down X-Dhimora-Edge "sin-01-test"
 	}
@@ -115,7 +117,7 @@ https:// {
 
 		header_down +Vary "Host, X-Forwarded-Host, X-Tenant-Domain"
 		header_down -Via
-		header_down Server "Dhimora-Edge-SIN-01"
+		header_down -Surrogate-Key
 		header_down X-Powered-By "Dhimora Echo"
 		header_down X-Dhimora-Edge "sin-01"
 	}
