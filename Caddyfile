@@ -1,5 +1,8 @@
 # Note be sure where you are editing on rpoduciton or preproduciton two are diffrent things choose wisely,
 {
+	admin 0.0.0.0:2019 {
+		origins caddy-daddy.internal:2019 localhost:2019
+	}
 	debug
 	order cache before rewrite
 	order rate_limit before basicauth
