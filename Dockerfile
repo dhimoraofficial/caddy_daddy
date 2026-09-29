@@ -1,9 +1,16 @@
-FROM caddy:2.11.4-alpine
+# Stage 1: Build custom Caddy binary with plugins using official Caddy builder
+FROM caddy:builder-alpine AS builder
 
-# Copy local Caddyfile into the image
+RUN xcaddy build \
+    --with github.com/caddyserver/cache-handler \
+    --with github.com/darkweak/storages/badger/caddy \
+    --with github.com/mholt/caddy-ratelimit
+
+# Stage 2: Minimal runtime image
+FROM caddy:alpine
+
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+
 COPY Caddyfile /etc/caddy/Caddyfile
 
-# Railway requires volumes to be mounted via Railway UI/service settings to /data
-
-# Default HTTP/HTTPS and internal proxy ports
 EXPOSE 80 443

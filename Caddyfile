@@ -1,14 +1,46 @@
 {
 	debug
+	order cache before rewrite
+	order rate_limit before basicauth
+
+	cache {
+		badger {
+			path /data/cache
+		}
+		regex {
+			exclude ".*(/api/|/auth/|/account/|/checkout/|/health).*"
+		}
+		api {
+			basepath /__cache
+			souin
+		}
+		ttl 7200s
+		stale 86400s
+	}
+
 	on_demand_tls {
 		ask {$ASK_ENDPOINT:https://dhimora-backend.fly.dev/v2/store/lookup}
 	}
 }
 
-# HTTP: Health check and automatic redirect to HTTPS
+# HTTP: Health check, internal purge API, and automatic redirect to HTTPS
 http:// {
-	@notHealth not path /health
-	redir @notHealth https://{host}{uri} permanent
+	@internalPurge {
+		path /__cache*
+		remote_ip 127.0.0.1 ::1 fd00::/8 172.16.0.0/12
+	}
+
+	handle @internalPurge {
+		reverse_proxy 127.0.0.1:2019 {
+			header_up Host localhost:2019
+		}
+	}
+
+	@notHealthOrPurge {
+		not path /health
+		not path /__cache*
+	}
+	redir @notHealthOrPurge https://{host}{uri} permanent
 
 	header {
 		-Via
@@ -19,12 +51,30 @@ http:// {
 	respond /health 200 {
 		body "ok"
 	}
+
+	cache
 }
 
 # HTTPS: On-Demand TLS for custom tenant domains and wildcard subdomains
 https:// {
 	tls {
 		on_demand
+	}
+
+	# Block external access to cache administrative endpoints
+	@externalCacheApi {
+		path /__cache*
+		not remote_ip 127.0.0.1 ::1 fd00::/8 172.16.0.0/12
+	}
+	respond @externalCacheApi 403
+
+	# Rate limiting: 120 requests per minute per IP
+	rate_limit {
+		zone store_client_zone {
+			key {remote_host}
+			events 120
+			window 1m
+		}
 	}
 
 	header {
@@ -39,19 +89,32 @@ https:// {
 
 	encode zstd gzip
 
+	cache
+
+	# Pre-production edge routing for *.test.dhimora.com
+	@preprod host *.test.dhimora.com
+	reverse_proxy @preprod https://dhimora-echo-ecommerce-test.fly.dev {
+		header_up Host dhimora-echo-ecommerce-test.fly.dev
+		header_up X-Tenant-Domain {host}
+		header_up X-Forwarded-Proto https
+		header_up X-Real-IP {remote_host}
+
+		header_down +Vary "Host, X-Forwarded-Host, X-Tenant-Domain"
+		header_down -Via
+		header_down Server "Dhimora-Edge-SIN-01-Test"
+		header_down X-Powered-By "Dhimora Echo"
+		header_down X-Dhimora-Edge "sin-01-test"
+	}
+
+	# Production edge routing default
 	reverse_proxy {$UPSTREAM_URL:https://dhimora-echo-ecommerce.fly.dev} {
 		header_up Host {$UPSTREAM_HOST:dhimora-echo-ecommerce.fly.dev}
 		header_up X-Tenant-Domain {host}
 		header_up X-Forwarded-Proto https
 		header_up X-Real-IP {remote_host}
 
-		# Enforce multi-tenant cache isolation by appending Host and tenant domain to Vary
 		header_down +Vary "Host, X-Forwarded-Host, X-Tenant-Domain"
-
-		# Strip proxy disclosure header
 		header_down -Via
-
-		# Brand every response as part of Dhimora Edge Cloud
 		header_down Server "Dhimora-Edge-SIN-01"
 		header_down X-Powered-By "Dhimora Echo"
 		header_down X-Dhimora-Edge "sin-01"
