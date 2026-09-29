@@ -8,6 +8,12 @@
 	order cache before rewrite
 	order rate_limit before basicauth
 
+	storage redis {
+		address "{$REDIS_HOST}"
+		password "{$REDIS_PASSWORD}"
+		key_prefix "caddy:tls"
+	}
+
 	cache {
 		redis {
 			url {$REDIS_URL}

@@ -54,7 +54,7 @@ primary_region = "sin"
     grace_period = "5s"
 
 [[vm]]
-  size = "shared-cpu-4x"
-  memory = "2048mb"
+  size = "shared-cpu-1x"
+  memory = "512mb"
   cpu_kind = "shared"
-  cpus = 4
+  cpus = 1
