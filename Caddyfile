@@ -29,7 +29,6 @@
 http:// {
 	@internalPurge {
 		path /__cache*
-		remote_ip 127.0.0.1 ::1 fd00::/8 172.16.0.0/12
 	}
 
 	handle @internalPurge {
