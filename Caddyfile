@@ -3,7 +3,6 @@
 	admin 0.0.0.0:2019
 	debug
 	order cache before rewrite
-	order rate_limit before basicauth
 
 	cache {
 		badger {
@@ -78,15 +77,6 @@ https:// {
 		not remote_ip 127.0.0.1 ::1 fd00::/8 172.16.0.0/12
 	}
 	respond @externalCacheApi 403
-
-	# Rate limiting: 120 requests per minute per IP
-	rate_limit {
-		zone store_client_zone {
-			key {remote_host}
-			events 3
-			window 1s
-		}
-	}
 
 	header {
 		-Via
