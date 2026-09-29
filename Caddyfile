@@ -4,6 +4,7 @@
 		origins localhost:2019 127.0.0.1:2019 caddy-daddy.internal:9000 caddy-daddy.internal:2019
 	}
 	debug
+	order request_header before cache
 	order cache before rewrite
 	order rate_limit before basicauth
 
@@ -83,6 +84,10 @@ https:// {
 		on_demand
 	}
 
+	# Strip incoming browser cache-busting headers (DevTools disable cache / Ctrl+F5)
+	request_header -Cache-Control
+	request_header -Pragma
+
 	# Block external access to cache administrative endpoints
 	@externalCacheApi {
 		path /__cache*
@@ -92,7 +97,7 @@ https:// {
 
 	# Matcher: Only apply to page requests (excluding static assets, media, Next.js chunks, fonts, and health checks)
 	@rateLimitedPages {
-		not path /_next/* /images/* /assets/* /fonts/* /static/* /favicon.ico /manifest.json /robots.txt /sitemap.xml /health /__cache*
+		not path /_next/* /images/* /assets/* /fonts/* /static/* /robots.txt /sitemap.xml /__cache*
 		not path *.js *.css *.png *.jpg *.jpeg *.svg *.webp *.gif *.ico *.woff *.woff2 *.ttf *.eot *.map *.json
 	}
 
