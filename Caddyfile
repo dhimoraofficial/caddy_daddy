@@ -107,11 +107,11 @@ https:// {
 		not path *.js *.css *.png *.jpg *.jpeg *.svg *.webp *.gif *.ico *.woff *.woff2 *.ttf *.eot *.map *.json
 	}
 
-	# Rate limiting: 120 page requests per minute per IP
+	# Rate limiting: 360 page requests per minute per IP (3x increased from 120)
 	rate_limit @rateLimitedPages {
 		zone store_page_zone {
 			key {remote_host}
-			events 120
+			events 360
 			window 1m
 		}
 	}
