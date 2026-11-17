@@ -4,6 +4,9 @@ Production-ready Caddy v2 reverse proxy deployed on **Fly.io** with persistent s
 
 Handles **custom tenant domains** with automated On-Demand TLS as well as **wildcard subdomains** (`*.dhimora.com`).
 
+For the local branch review, cache safety policy, and regression command, see
+[EDGE-REVIEW.md](EDGE-REVIEW.md).
+
 ---
 
 ## 🏗 Architecture

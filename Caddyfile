@@ -1,4 +1,4 @@
-# Note be sure where you are editing on rpoduciton or preproduciton two are diffrent things choose wisely,
+# Production and pre-production share this edge; keep their upstreams and cache entries isolated.
 {
 	admin 0.0.0.0:2019 {
 		origins localhost:2019 127.0.0.1:2019 caddy-daddy.internal:9000 caddy-daddy.internal:2019
@@ -15,6 +15,10 @@
 	}
 
 	cache {
+		# Do not reuse entries created before cookie/response/Vary safety guards.
+		key {
+			template "edge-safe-v1-{http.request.method}-{http.request.scheme}-{http.request.host}{http.request.uri}"
+		}
 		redis {
 			url {$REDIS_URL}
 		}
@@ -36,7 +40,7 @@
 
 # Internal purge-only listener on port 9000 (not in fly.toml [[services]] = private network only)
 :9000 {
-	handle {
+	handle /__cache/* {
 		reverse_proxy 127.0.0.1:2019 {
 			header_up Host localhost:2019
 			header_up -X-Forwarded-For
@@ -46,24 +50,13 @@
 			header_up -Origin
 		}
 	}
+	respond 404
 }
 
-# HTTP: Health check, internal purge API, and automatic redirect to HTTPS
+# Port 80 is public in fly.toml. Cache administration is private-port-only.
 http:// {
-	@internalPurge {
-		path /__cache*
-	}
-
-	handle @internalPurge {
-		reverse_proxy 127.0.0.1:2019 {
-			header_up Host localhost:2019
-			header_up -X-Forwarded-For
-			header_up -X-Forwarded-Proto
-			header_up -X-Forwarded-Host
-			header_up -Sec-Fetch-Mode
-			header_up -Origin
-		}
-	}
+	@externalCacheApi path /__cache*
+	respond @externalCacheApi 403
 
 	@notHealthOrPurge {
 		not path /health
@@ -80,8 +73,6 @@ http:// {
 	respond /health 200 {
 		body "ok"
 	}
-
-	cache
 }
 
 # HTTPS: On-Demand TLS for custom tenant domains and wildcard subdomains
@@ -95,10 +86,8 @@ https:// {
 	request_header -Pragma
 
 	# Block external access to cache administrative endpoints
-	@externalCacheApi {
-		path /__cache*
-		not remote_ip 127.0.0.1 ::1 fd00::/8 172.16.0.0/12
-	}
+	# Fly's gateway may have a private source IP even for public requests.
+	@externalCacheApi path /__cache*
 	respond @externalCacheApi 403
 
 	# Matcher: Only apply to page requests (excluding static assets, media, Next.js chunks, fonts, and health checks)
@@ -121,6 +110,11 @@ https:// {
 		-Surrogate-Key
 		X-Powered-By "Dhimora Echo"
 	}
+	# Also protect downstream browser/CDN caches when the origin labels a personalized page public.
+	@withCookie header Cookie *
+	header @withCookie >Cache-Control "private, no-store"
+	@withAuthorization header Authorization *
+	header @withAuthorization >Cache-Control "private, no-store"
 
 	respond /health 200 {
 		body "ok"
@@ -128,20 +122,45 @@ https:// {
 
 	encode zstd gzip
 
-	cache
+	# Cookie and Authorization requests bypass shared storage. Unknown cookies bypass too so new personalization
+	# remains private without creating per-cookie cache keys.
+	@anonymous {
+		header !Cookie
+		header !Authorization
+		method GET HEAD
+		not path /api /api/* /auth /auth/* /account /account/* /checkout /checkout/* /health /__cache*
+	}
+	cache @anonymous
 
 	# Pre-production edge routing for *.test.dhimora.com
 	@preprod host *.test.dhimora.com
-	reverse_proxy @preprod https://dhimora-echo-ecommerce-test.fly.dev {
-		header_up Host dhimora-echo-ecommerce-test.fly.dev
+	reverse_proxy @preprod {$PREPROD_UPSTREAM_URL:https://dhimora-echo-ecommerce-test.fly.dev} {
+		header_up Host {$PREPROD_UPSTREAM_HOST:dhimora-echo-ecommerce-test.fly.dev}
 		header_up X-Tenant-Domain {host}
 		header_up X-Forwarded-Proto https
 		header_up X-Real-IP {remote_host}
 
-		header_down Vary "rsc, Accept-Encoding"
+		# Keep Next's representation and locale Vary tokens; only remove internal proxy host tokens already covered by
+		# Caddy's host-specific cache key.
+		header_down Vary "(?i)(^|, *)host( *, *|$)" "$1"
+		header_down Vary "(?i)(^|, *)x-forwarded-host( *, *|$)" "$1"
+		header_down Vary "(?i)(^|, *)x-tenant-domain( *, *|$)" "$1"
+		header_down Vary ", *$" ""
 		header_down -Via
 		header_down X-Powered-By "Dhimora Echo"
 		header_down X-Dhimora-Edge "sin-01-test"
+
+		@notOK status 201 202 203 204 205 206 207 208 226 3xx 4xx 5xx
+		handle_response @notOK {
+			header >Cache-Control "no-store"
+			copy_response
+		}
+
+		@setCookie header Set-Cookie *
+		handle_response @setCookie {
+			header >Cache-Control "private, no-store"
+			copy_response
+		}
 	}
 
 	# Production edge routing default
@@ -151,9 +170,26 @@ https:// {
 		header_up X-Forwarded-Proto https
 		header_up X-Real-IP {remote_host}
 
-		header_down Vary "rsc, Accept-Encoding"
+		# Keep Next's representation and locale Vary tokens; only remove internal proxy host tokens already covered by
+		# Caddy's host-specific cache key.
+		header_down Vary "(?i)(^|, *)host( *, *|$)" "$1"
+		header_down Vary "(?i)(^|, *)x-forwarded-host( *, *|$)" "$1"
+		header_down Vary "(?i)(^|, *)x-tenant-domain( *, *|$)" "$1"
+		header_down Vary ", *$" ""
 		header_down -Via
 		header_down X-Powered-By "Dhimora Echo"
 		header_down X-Dhimora-Edge "sin-01"
+
+		@notOK status 201 202 203 204 205 206 207 208 226 3xx 4xx 5xx
+		handle_response @notOK {
+			header >Cache-Control "no-store"
+			copy_response
+		}
+
+		@setCookie header Set-Cookie *
+		handle_response @setCookie {
+			header >Cache-Control "private, no-store"
+			copy_response
+		}
 	}
 }
