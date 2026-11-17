@@ -1,9 +1,9 @@
 # Production and pre-production share this edge; keep their upstreams and cache entries isolated.
 {
-	admin 0.0.0.0:2019 {
-		origins localhost:2019 127.0.0.1:2019 caddy-daddy.internal:9000 caddy-daddy.internal:2019
+	# Loopback only; the private :9000 listener forwards /__cache/* here with Host localhost:2019.
+	admin localhost:2019 {
+		origins localhost:2019 127.0.0.1:2019
 	}
-	debug
 	order request_header before cache
 	order cache before rewrite
 	order rate_limit before basicauth
@@ -84,6 +84,13 @@ https:// {
 	# Strip incoming browser cache-busting headers (DevTools disable cache / Ctrl+F5)
 	request_header -Cache-Control
 	request_header -Pragma
+
+	# One JSON access line per request; Caddy redacts Cookie, Set-Cookie and Authorization by default.
+	log {
+		output stdout
+		format json
+	}
+	log_skip /health
 
 	# Block external access to cache administrative endpoints
 	# Fly's gateway may have a private source IP even for public requests.
